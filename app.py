@@ -21,7 +21,7 @@ def fetch_verification_code():
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(BASE_EMAIL, GMAIL_APP_PASSWORD)
         
-        for _ in range(30): 
+        for _ in range(35): 
             mail.select("inbox")
             status, messages = mail.search(None, '(UNSEEN FROM "tiktok.com")')
             
@@ -88,35 +88,49 @@ async def auto_create_bot():
                 "--disable-infobars",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--window-size=1920,1080"
+                "--disable-setuid-sandbox",
+                "--no-first-run",
+                "--no-service-autorun",
+                "--password-store=basic",
+                "--window-size=1366,768"
             ]
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080},
-            locale="en-US"
+            viewport={"width": 1366, "height": 768},
+            locale="en-US",
+            timezone_id="Asia/Riyadh",
+            permissions=["geolocation"]
         )
         
-        # حقن سكربت لإخفاء معالم الأتمتة تماماً من المتصفح
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        # حقن مكثف لتخطي كشف الأتمتة
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => false});
+            window.navigator.chrome = {runtime: {}};
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+        """)
         
         page = await context.new_page()
         
         try:
-            print("🌐 المرور عبر الصفحة الرئيسية لتجاوز فحص الأمان...")
-            await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
+            print("🌐 الدخول المتدرج لتجاوز الفحص الأمني...")
+            await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(3, 5))
             
-            # محاكاة حركة بشرية بسيطة (تحريك الفأرة أو التمرير)
-            await page.mouse.move(100, 200)
-            await page.evaluate("window.scrollBy(0, 300);")
+            # محاكاة سلوك بشري حقيقي (تحريك عشوائي للفأرة)
+            await page.mouse.move(200, 300)
+            await page.mouse.down()
+            await page.mouse.up()
             await asyncio.sleep(2)
 
-            print("🌐 الانتقال إلى صفحة التسجيل...")
+            print("🌐 الانتقال المباشر لصفحة التسجيل الآمنة...")
             await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(5, 7))
             
-            # البحث عن حقل البريد الإلكتروني بمختلف احتمالات الظهور
+            # الانتظار حتى تظهر حقول الإدخال مع مهلة مرنة
+            print("⌨️ البحث عن حقول الإدخال...")
+            
             email_selectors = [
                 'input[type="email"]', 
                 'input[name="email"]', 
@@ -128,21 +142,23 @@ async def auto_create_bot():
             email_field = None
             for sel in email_selectors:
                 try:
-                    email_field = await page.wait_for_selector(sel, timeout=7000)
+                    email_field = await page.wait_for_selector(sel, timeout=10000)
                     if email_field:
-                        print(f"✅ تم العثور على حقل البريد عبر المحدد: {sel}")
+                        print(f"✅ تم العثور على حقل البريد بنجاح عبر المحدد: {sel}")
                         break
                 except:
                     continue
             
             if not email_field:
-                return False, "⚠️ ما زالت صفحة الحماية تمنع ظهور حقل الإيميل (تحقق بشري Captcha نشط)."
+                return False, "⚠️ تم حظر الطلب مؤقتًا من قِبل نظام حماية تيك توك (Cloudflare Challenge)."
 
+            # الكتابة بسرعة بشرية متقطعة
             await email_field.click()
-            await email_field.type(bot_email, delay=random.randint(100, 200))
+            for char in bot_email:
+                await email_field.type(char, delay=random.randint(80, 180))
             await asyncio.sleep(1)
 
-            # حقل كلمة المرور
+            # إدخال كلمة المرور
             pass_selectors = ['input[type="password"]', 'input[name="password"]', 'input[placeholder*="password" i]']
             pass_field = None
             for sel in pass_selectors:
@@ -155,11 +171,18 @@ async def auto_create_bot():
 
             if pass_field:
                 await pass_field.click()
-                await pass_field.type(password, delay=random.randint(100, 200))
+                for char in password:
+                    await pass_field.type(char, delay=random.randint(80, 180))
                 await asyncio.sleep(1.5)
 
-            # زر إرسال الرمز
-            send_btn_selectors = ['button:has-text("Send code")', 'button:has-text("إرسال الرمز")', 'button[type="submit"]', '[data-e2e="send-code-button"]']
+            # النقر على زر إرسال الرمز
+            send_btn_selectors = [
+                'button:has-text("Send code")', 
+                'button:has-text("إرسال الرمز")', 
+                'button[type="submit"]', 
+                '[data-e2e="send-code-button"]',
+                'button:has-text("Send")'
+            ]
             clicked_send = False
             for sel in send_btn_selectors:
                 try:
@@ -167,17 +190,18 @@ async def auto_create_bot():
                     if btn:
                         await btn.click()
                         clicked_send = True
-                        print("📨 تم النقر على زر إرسال الرمز بنجاح!")
+                        print("📨 تم النقر على زر إرسال الرمز بنجاح تام!")
                         break
                 except:
                     continue
 
             if not clicked_send:
-                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
+                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق في الصفحة."
 
-            await asyncio.sleep(6)
+            print("⏳ الانتظار حتى يصل الرمز إلى Gmail...")
+            await asyncio.sleep(8)
             
-            # جلب الرمز من Gmail
+            # سحب الرمز البرمجي من Gmail تلقائياً
             verification_code = fetch_verification_code()
             if verification_code:
                 code_selectors = ['input[placeholder*="digit" i]', 'input[placeholder*="رمز" i]', 'input[name="code"]', 'input[maxlength="6"]']
@@ -210,7 +234,7 @@ async def auto_create_bot():
                     f.write(f"{bot_email},{password}\n")
                 return True, f"🎉 تم إنشاء الحساب وحفظه في المزرعة بنجاح: {bot_email}"
             else:
-                return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني."
+                return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني (تأكد من عدم ظهور كابتشا يدوية)."
 
         except Exception as e:
             return False, f"⚠️ حدث خطأ أثناء التشغيل: {str(e)}"
@@ -263,7 +287,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - النسخة المحسنة</title>
+    <title>منظومة سعيد الذكية - النسخة الخارقة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -277,8 +301,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد المحسنة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام تجاوز الحماية والاتصال | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد الخارقة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام التمويب وتجاوز الفحص المتقدم | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -289,7 +313,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الذكي الآمن ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الذكي الخارق ⚙️</button>
             </form>
         </div>
 
