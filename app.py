@@ -15,6 +15,7 @@ app = Flask(__name__)
 BASE_EMAIL = "saeedosama921@gmail.com"
 GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc"
 
+# دالة قراءة وسحب الرمز تلقائياً من Gmail في الخلفية عبر IMAP
 def fetch_verification_code():
     print("📥 يتصل السكريبت بصندوق الوارد في Gmail بانتظار الرمز تلقائياً...")
     try:
@@ -60,6 +61,7 @@ def fetch_verification_code():
         print(f"❌ خطأ بروتوكول IMAP: {str(e)}")
     return None
 
+# دالة توليد تنوعات الإيميل بنقاط عشوائية لتيك توك (Dot Trick)
 def generate_dot_email():
     name, domain = BASE_EMAIL.split('@')
     name_list = list(name)
@@ -74,7 +76,8 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-async def auto_create_bot():
+# محرك الإنشاء الأوتوماتيكي الآمن باستخدام Playwright الحقيقي مع التمويه العالي
+async def auto_create_bot_browser():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -88,49 +91,38 @@ async def auto_create_bot():
                 "--disable-infobars",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--disable-setuid-sandbox",
-                "--no-first-run",
-                "--no-service-autorun",
-                "--password-store=basic",
                 "--window-size=1366,768"
             ]
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768},
-            locale="en-US",
-            timezone_id="Asia/Riyadh",
-            permissions=["geolocation"]
+            locale="en-US"
         )
         
-        # حقن مكثف لتخطي كشف الأتمتة
+        # إخفاء معالم الأتمتة تماماً لمنع حظر Cloudflare
         await context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => false});
             window.navigator.chrome = {runtime: {}};
-            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            Object.defineProperty(navigator, 'languages', {get: ['en-US', 'en']});
         """)
         
         page = await context.new_page()
         
         try:
-            print("🌐 الدخول المتدرج لتجاوز الفحص الأمني...")
-            await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded", timeout=60000)
+            print("🌐 الدخول المتدرج لصفحة تيك توك لتجاوز الحماية...")
+            await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(3, 5))
             
-            # محاكاة سلوك بشري حقيقي (تحريك عشوائي للفأرة)
-            await page.mouse.move(200, 300)
-            await page.mouse.down()
-            await page.mouse.up()
+            # تحريك الماوس لمحاكاة تفاعل بشري
+            await page.mouse.move(150, 250)
             await asyncio.sleep(2)
 
-            print("🌐 الانتقال المباشر لصفحة التسجيل الآمنة...")
+            print("🌐 الانتقال إلى صفحة التسجيل...")
             await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(5, 7))
             
-            # الانتظار حتى تظهر حقول الإدخال مع مهلة مرنة
-            print("⌨️ البحث عن حقول الإدخال...")
-            
+            # البحث عن حقل البريد الإلكتروني بمرونة فائقة
             email_selectors = [
                 'input[type="email"]', 
                 'input[name="email"]', 
@@ -142,20 +134,19 @@ async def auto_create_bot():
             email_field = None
             for sel in email_selectors:
                 try:
-                    email_field = await page.wait_for_selector(sel, timeout=10000)
+                    email_field = await page.wait_for_selector(sel, timeout=8000)
                     if email_field:
-                        print(f"✅ تم العثور على حقل البريد بنجاح عبر المحدد: {sel}")
                         break
                 except:
                     continue
             
             if not email_field:
-                return False, "⚠️ تم حظر الطلب مؤقتًا من قِبل نظام حماية تيك توك (Cloudflare Challenge)."
+                return False, "⚠️ تم حظر الطلب مؤقتًا من قبل نظام حماية تيك توك (Cloudflare Challenge)."
 
-            # الكتابة بسرعة بشرية متقطعة
+            # إدخال البريد الإلكتروني ببطء بشري
             await email_field.click()
             for char in bot_email:
-                await email_field.type(char, delay=random.randint(80, 180))
+                await email_field.type(char, delay=random.randint(100, 200))
             await asyncio.sleep(1)
 
             # إدخال كلمة المرور
@@ -172,7 +163,7 @@ async def auto_create_bot():
             if pass_field:
                 await pass_field.click()
                 for char in password:
-                    await pass_field.type(char, delay=random.randint(80, 180))
+                    await pass_field.type(char, delay=random.randint(100, 200))
                 await asyncio.sleep(1.5)
 
             # النقر على زر إرسال الرمز
@@ -180,8 +171,7 @@ async def auto_create_bot():
                 'button:has-text("Send code")', 
                 'button:has-text("إرسال الرمز")', 
                 'button[type="submit"]', 
-                '[data-e2e="send-code-button"]',
-                'button:has-text("Send")'
+                '[data-e2e="send-code-button"]'
             ]
             clicked_send = False
             for sel in send_btn_selectors:
@@ -190,18 +180,18 @@ async def auto_create_bot():
                     if btn:
                         await btn.click()
                         clicked_send = True
-                        print("📨 تم النقر على زر إرسال الرمز بنجاح تام!")
+                        print("📨 تم النقر على زر إرسال الرمز بنجاح!")
                         break
                 except:
                     continue
 
             if not clicked_send:
-                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق في الصفحة."
+                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
 
-            print("⏳ الانتظار حتى يصل الرمز إلى Gmail...")
+            print("⏳ الانتظار لجلب الرمز من Gmail...")
             await asyncio.sleep(8)
             
-            # سحب الرمز البرمجي من Gmail تلقائياً
+            # سحب الرمز من Gmail تلقائياً
             verification_code = fetch_verification_code()
             if verification_code:
                 code_selectors = ['input[placeholder*="digit" i]', 'input[placeholder*="رمز" i]', 'input[name="code"]', 'input[maxlength="6"]']
@@ -234,13 +224,14 @@ async def auto_create_bot():
                     f.write(f"{bot_email},{password}\n")
                 return True, f"🎉 تم إنشاء الحساب وحفظه في المزرعة بنجاح: {bot_email}"
             else:
-                return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني (تأكد من عدم ظهور كابتشا يدوية)."
+                return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني."
 
         except Exception as e:
-            return False, f"⚠️ حدث خطأ أثناء التشغيل: {str(e)}"
+            return False, f"⚠️ خطأ أثناء التشغيل: {str(e)}"
         finally:
             await browser.close()
 
+# دالة توجيه المتابعات عبر المتصفح
 async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
@@ -282,12 +273,13 @@ async def auto_send_follows(target_username):
         await browser.close()
     return f"🚀 تم تنفيذ المتابعات بنجاح إلى الحساب @{target_username}"
 
+# واجهة لوحة تحكم الويب الرسومية
 HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - النسخة الخارقة</title>
+    <title>منظومة سعيد الذكية - النسخة النهائية</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -301,8 +293,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد الخارقة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام التمويب وتجاوز الفحص المتقدم | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد النهائية</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام الإدارة والتشغيل الآمن | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -313,7 +305,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الذكي الخارق ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الذكي الآمن ⚙️</button>
             </form>
         </div>
 
@@ -339,7 +331,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot())
+        success, msg = asyncio.run(auto_create_bot_browser())
         last_msg = msg
         if not success:
             break
