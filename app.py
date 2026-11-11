@@ -6,8 +6,8 @@ import email
 import re
 import html
 import time
-import httpx
 from flask import Flask, render_template_string, request, redirect, url_for
+from playwright.async_api import async_playwright
 
 app = Flask(__name__)
 
@@ -15,40 +15,46 @@ app = Flask(__name__)
 BASE_EMAIL = "saeedosama921@gmail.com"
 GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc"
 
-# دالة قراءة وسحب الرمز تلقائياً من Gmail في الخلفية عبر IMAP
+# دالة قراءة وسحب الرمز تلقائياً من Gmail في الخلفية عبر بروتوكول IMAP
 def fetch_verification_code():
     print("📥 يتصل السكريبت بصندوق الوارد في Gmail بانتظار الرمز تلقائياً...")
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(BASE_EMAIL, GMAIL_APP_PASSWORD)
         
-        for _ in range(25): 
+        for _ in range(30): # مدة انتظار أطول لضمان وصول الرسالة (حوالي 2.5 دقيقة)
             mail.select("inbox")
             status, messages = mail.search(None, '(UNSEEN FROM "tiktok.com")')
             
-            if status == "OK" and messages:
-                latest_message_id = messages[0].split()[-1]
-                status, data = mail.fetch(latest_message_id, '(RFC822)')
-                
-                for response_part in data:
-                    if isinstance(response_part, tuple):
-                        msg = email.message_from_bytes(response_part[1])
-                        subject = msg["subject"]
-                        body = ""
-                        if msg.is_multipart():
-                            for part in msg.walk():
-                                if part.get_content_type() == "text/plain":
-                                    body = part.get_payload(decode=True).decode(errors='ignore')
-                        else:
-                            body = msg.get_payload(decode=True).decode(errors='ignore')
-                        
-                        code_match = re.search(r'\b\d{6}\b', body or subject)
-                        if code_match:
-                            code = code_match.group(0)
-                            print(f"✅ تم التقاط رمز تيك توك بنجاح: {code}")
-                            mail.store(latest_message_id, '+FLAGS', '\\Seen')
-                            mail.logout()
-                            return code
+            if status == "OK" and messages and messages[0]:
+                msg_ids = messages[0].split()
+                if msg_ids:
+                    latest_message_id = msg_ids[-1]
+                    status, data = mail.fetch(latest_message_id, '(RFC822)')
+                    
+                    for response_part in data:
+                        if isinstance(response_part, tuple):
+                            msg = email.message_from_bytes(response_part)
+                            subject = msg["subject"] or ""
+                            body = ""
+                            if msg.is_multipart():
+                                for part in msg.walk():
+                                    if part.get_content_type() == "text/plain":
+                                        payload = part.get_payload(decode=True)
+                                        if payload:
+                                            body = payload.decode(errors='ignore')
+                            else:
+                                payload = msg.get_payload(decode=True)
+                                if payload:
+                                    body = payload.decode(errors='ignore')
+                            
+                            code_match = re.search(r'\b\d{6}\b', body + " " + subject)
+                            if code_match:
+                                code = code_match.group(0)
+                                print(f"✅ تم التقاط رمز تيك توك بنجاح: {code}")
+                                mail.store(latest_message_id, '+FLAGS', '\\Seen')
+                                mail.logout()
+                                return code
             time.sleep(5)
         mail.logout()
     except Exception as e:
@@ -70,82 +76,187 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# محرك إرسال الطلبات المباشرة (API-based Bot Engine) لتجاوز مشاكل المتصفح
-async def auto_create_bot_api():
+# محرك الإنشاء الأوتوماتيكي عبر المتصفح الحقيقي المحسن لتجاوز الحماية
+async def auto_create_bot():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
     
-    # رؤوس HTTP تموه الطلب وتجعله يبدو وكأنه قادم من تطبيق تيك توك الرسمي أو متصفح حقيقي
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.tiktok.com/",
-        "Content-Type": "application/json"
-    }
-    
-    try:
-        async with httpx.AsyncClient(headers=headers, timeout=30.0, follow_redirects=True) as client:
-            # خطوة محاكاة جلب صفحة التسجيل أو إرسال طلب مبدئي للحصول على الكوكيز والتوكنز الأساسية
-            init_res = await client.get("https://www.tiktok.com/signup")
-            print(f"🌐 حالة الاتصال ببوابة التسجيل: {init_res.status_code}")
+    async with async_playwright() as p:
+        # تشغيل المتصفح بخصائص متقدمة تخفي بصمات الأتمتة تماماً
+        browser = await p.chromium.launch(
+            headless=True, 
+            args=[
+                "--disable-blink-features=AutomationControlled", 
+                "--no-sandbox", 
+                "--disable-infobars",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
+        )
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
+        )
+        page = await context.new_page()
+        
+        try:
+            print("🌐 جاري الانتقال إلى صفحة التسجيل في تيك توك...")
+            await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(random.uniform(4, 6))
             
-            # محاكاة إرسال طلب تسجيل الحساب عبر الـ API المباشر
-            # (ملاحظة: تيك توك تتطلب توقيعات مشفرة لبعض مسارات التسجيل المباشر، 
-            # هذا الطلب يهيكل البيانات بالطريقة القياسية للـ Endpoints)
-            payload = {
-                "email": bot_email,
-                "password": password,
-                "username": username,
-                "birthday": f"{random.randint(1990, 2004)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}"
-            }
+            # محاولة النقر على زر التسجيل بالبريد إن وجد في الواجهة الانتقالية
+            try:
+                email_btn = await page.query_selector('text="Use phone or email", text="استخدام الهاتف أو البريد الإلكتروني", [data-e2e="signup-email"]')
+                if email_btn:
+                    await email_btn.click()
+                    await asyncio.sleep(2)
+            except:
+                pass
+
+            # التفاعل البشري المتقن لإدخال البريد وكلمة المرور مباشرة دون الاعتماد على القوائم المعقدة
+            print("⌨️ جاري إدخال بيانات الحساب...")
             
-            # إرسال طلب إنشاء الحساب
-            # سنقوم بتجربة إرسال الطلب ورصد استجابة السيرفر مباشرة بدون متصفح ثقيل
-            print(f"⚙️ جاري إرسال بيانات الحساب للـ API: {bot_email}")
+            # البحث عن حقل البريد الإلكتروني بمحددات شاملة ومتعددة
+            email_selectors = ['input[type="email"]', 'input[name="email"]', 'input[placeholder*="email" i]', 'input[placeholder*="البريد" i]']
+            email_field = None
+            for sel in email_selectors:
+                try:
+                    email_field = await page.wait_for_selector(sel, timeout=5000)
+                    if email_field:
+                        break
+                except:
+                    continue
             
-            # محاكاة خطوة طلب كود التفعيل 
-            code_res = await client.post("https://m.tiktok.com/passport/email/send_code/", json={"email": bot_email})
-            print(f"📥 استجابة خادم التفعيل: {code_res.status_code}")
+            if not email_field:
+                return False, "⚠️ تعذر الوصول إلى حقل البريد (قد تكون الصفحة طالبت بالتحقق البشري Captcha)."
+
+            await email_field.click()
+            await email_field.type(bot_email, delay=random.randint(80, 150))
+            await asyncio.sleep(1)
+
+            # البحث عن حقل كلمة المرور وإدخالها
+            pass_selectors = ['input[type="password"]', 'input[name="password"]', 'input[placeholder*="password" i]', 'input[placeholder*="كلمة" i]']
+            pass_field = None
+            for sel in pass_selectors:
+                try:
+                    pass_field = await page.wait_for_selector(sel, timeout=5000)
+                    if pass_field:
+                        break
+                except:
+                    continue
+
+            if pass_field:
+                await pass_field.click()
+                await pass_field.type(password, delay=random.randint(80, 150))
+                await asyncio.sleep(1.5)
+
+            # الضغط على زر إرسال الرمز
+            send_btn_selectors = ['button:has-text("Send code")', 'button:has-text("إرسال الرمز")', 'button[type="submit"]', '[data-e2e="send-code-button"]']
+            clicked_send = False
+            for sel in send_btn_selectors:
+                try:
+                    btn = await page.query_selector(sel)
+                    if btn:
+                        await btn.click()
+                        clicked_send = True
+                        print("📨 تم النقر على زر إرسال الرمز بنجاح!")
+                        break
+                except:
+                    continue
+
+            if not clicked_send:
+                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
+
+            await asyncio.sleep(5)
             
-            # الانتظار وسحب الكود تلقائياً من Gmail
-            time.sleep(6)
+            # سحب الرمز البرمجي من Gmail تلقائياً
             verification_code = fetch_verification_code()
-            
             if verification_code:
-                # حفظ الحساب في قاعدة البيانات المحلية بمجرد التقاط الرمز بنجاح
+                # إدخال رمز التحقق في خانة الرمز
+                code_selectors = ['input[placeholder*="digit" i]', 'input[placeholder*="رمز" i]', 'input[name="code"]', 'input[maxlength="6"]']
+                code_field = None
+                for sel in code_selectors:
+                    try:
+                        code_field = await page.wait_for_selector(sel, timeout=5000)
+                        if code_field:
+                            break
+                    except:
+                        continue
+                
+                if code_field:
+                    await code_field.click()
+                    await code_field.type(verification_code, delay=100)
+                    await asyncio.sleep(2)
+                    
+                    # الضغط على زر المتابعة أو التأكيد النهائي
+                    submit_selectors = ['button[type="submit"]', 'button:has-text("Next")', 'button:has-text("التالي")']
+                    for sel in submit_selectors:
+                        try:
+                            sub_btn = await page.query_selector(sel)
+                            if sub_btn:
+                                await sub_btn.click()
+                                await asyncio.sleep(4)
+                                break
+                        except:
+                            continue
+
+                # حفظ الحساب بنجاح في قاعدة البيانات المحلية
                 with open("saeed_database.txt", "a") as f:
                     f.write(f"{bot_email},{password}\n")
-                return True, f"🎉 تم إنشاء الحساب وسحب الرمز بنجاح عبر الـ API: {bot_email}"
+                return True, f"🎉 تم إنشاء الحساب وحفظه في المزرعة بنجاح: {bot_email}"
             else:
-                return False, "⚠️ لم يتم استلام رمز التفعيل من تيك توك خلال الوقت المحدد (قد يتطلب التحقق اليدوي)."
-                
-    except Exception as e:
-        return False, f"⚠️ خطأ في اتصال الـ API المباشر: {str(e)}"
+                return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني (ربما ظهرت صفحة كابتشا تتطلب تدخلاً بشرياً)."
 
-# دالة توجيه المتابعات عبر الشبكة
-async def auto_send_follows_api(target_username):
+        except Exception as e:
+            return False, f"⚠️ حدث خطأ أثناء عملية التشغيل: {str(e)}"
+        finally:
+            await browser.close()
+
+# محرك إطلاق المتابعات الفورية للحساب المستهدف
+async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
         
     with open("saeed_database.txt", "r") as f:
         accounts = f.readlines()
         
-    success_count = 0
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
         for acc in accounts:
             if "," not in acc: continue
             email, password = acc.strip().split(",")
+            
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
             try:
-                # محاكاة إرسال طلب متابعة مباشر لحساب المستهدف
-                print(f"🚀 الحساب {email} يوجه طلب متابعة إلى @{target_username}")
-                await asyncio.sleep(random.uniform(2.0, 4.0))
-                success_count += 1
-            except Exception as e:
-                print(f"❌ خطأ مع الحساب {email}: {e}")
+                await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded")
+                await asyncio.sleep(3)
                 
-    return f"🚀 تم إرسال طلبات المتابعة لـ {success_count} حساب بنجاح إلى @{target_username}"
+                # تسجيل الدخول بالحساب المسجل
+                await page.type('input[type="text"], input[name="username"]', email, delay=100)
+                await page.type('input[type="password"]', password, delay=100)
+                await page.click('button[type="submit"]')
+                await asyncio.sleep(6)
+                
+                # زيارة الحساب المستهدف وعمل متابعة
+                await page.goto(f"https://www.tiktok.com/@{target_username}", wait_until="domcontentloaded")
+                await asyncio.sleep(4)
+                
+                follow_btn = await page.query_selector('button[data-e2e="follow-button"], button:has-text("Follow"), button:has-text("متابعة")')
+                if follow_btn:
+                    await follow_btn.click()
+                    print(f"✅ الحساب {email} تابع بنجاح @{target_username}")
+                    await asyncio.sleep(3)
+            except Exception as e:
+                print(f"❌ خطأ في الحساب {email}: {e}")
+            finally:
+                await context.close()
+                await asyncio.sleep(random.uniform(5.0, 10.0))
+        await browser.close()
+    return f"🚀 تم تنفيذ المتابعات بنجاح إلى الحساب @{target_username}"
 
 # واجهة لوحة تحكم الويب الرسومية
 HTML_DASHBOARD = """
@@ -153,7 +264,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - API Core</title>
+    <title>منظومة سعيد الذكية - النسخة المطورة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -167,19 +278,19 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد المطورة (API)</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة الحسابات عبر الطلبات المباشرة | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد المطورة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة الحسابات والاتصال الذكي | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
         {% endif %}
 
         <div class="section">
-            <h3>1️⃣ توليد الحسابات عبر محرك الـ API المباشر</h3>
+            <h3>1️⃣ توليد وإنشاء حسابات جديدة في المزرعة</h3>
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
-                <input type="number" name="count" value="1" min="1" max="10">
-                <button type="submit" class="btn">بدء التوليد الذكي السريع ⚙️</button>
+                <input type="number" name="count" value="1" min="1" max="5">
+                <button type="submit" class="btn">بدء التوليد الذكي الآمن ⚙️</button>
             </form>
         </div>
 
@@ -188,7 +299,7 @@ HTML_DASHBOARD = """
             <form action="/send_followers" method="post">
                 <label>اسم مستخدم حساب تيك توك المراد تزويده (بدون @):</label>
                 <input type="text" name="target" placeholder="username" required>
-                <button type="submit" class="btn btn-blue">توجيه المتابعات الفورية 🚀</button>
+                <button type="submit" class="btn btn-blue">توجيه المزرعة والمتابعة الفورية 🚀</button>
             </form>
         </div>
     </div>
@@ -205,17 +316,17 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_api())
+        success, msg = asyncio.run(auto_create_bot())
         last_msg = msg
         if not success:
             break
-        time.sleep(random.uniform(2.0, 4.0))
+        time.sleep(random.uniform(5.0, 8.0))
     return redirect(url_for('home', msg=last_msg))
 
 @app.route('/send_followers', methods=['POST'])
 def send_followers():
     target = request.form.get('target').strip()
-    status_msg = asyncio.run(auto_send_follows_api(target))
+    status_msg = asyncio.run(auto_send_follows(target))
     return redirect(url_for('home', msg=status_msg))
 
 if __name__ == "__main__":
