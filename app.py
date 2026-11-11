@@ -1,10 +1,10 @@
-python
 import os
 import asyncio
 import random
 import imaplib
 import email
 import re
+import html
 from flask import Flask, render_template_string, request, redirect, url_for
 from playwright.async_api import async_playwright
 
@@ -18,7 +18,7 @@ GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc" # تم دمج رمز الأمان الخ
 def fetch_verification_code():
     print("📥 يتصل السكريبت بصندوق الوارد في Gmail بانتظار الرمز تلقائياً...")
     try:
-        mail = imaplib.IMAP4_SSL("://gmail.com")
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(BASE_EMAIL, GMAIL_APP_PASSWORD)
         
         for _ in range(25): # الفحص الدوري لمدة دقيقتين تقريباً
@@ -26,20 +26,20 @@ def fetch_verification_code():
             status, messages = mail.search(None, '(UNSEEN FROM "tiktok.com")')
             
             if status == "OK" and messages:
-                latest_message_id = messages.split()[-1]
+                latest_message_id = messages[0].split()[-1]
                 status, data = mail.fetch(latest_message_id, '(RFC822)')
                 
                 for response_part in data:
                     if isinstance(response_part, tuple):
-                        msg = email.message_from_bytes(response_part)
+                        msg = email.message_from_bytes(response_part[1])
                         subject = msg["subject"]
                         body = ""
                         if msg.is_multipart():
                             for part in msg.walk():
                                 if part.get_content_type() == "text/plain":
-                                    body = part.get_payload(decode=True).decode()
+                                    body = part.get_payload(decode=True).decode(errors='ignore')
                         else:
-                            body = msg.get_payload(decode=True).decode()
+                            body = msg.get_payload(decode=True).decode(errors='ignore')
                         
                         code_match = re.search(r'\b\d{6}\b', body or subject)
                         if code_match:
@@ -48,7 +48,7 @@ def fetch_verification_code():
                             mail.store(latest_message_id, '+FLAGS', '\\Seen')
                             mail.logout()
                             return code
-            asyncio.run(asyncio.sleep(5))
+            time.sleep(5)
         mail.logout()
     except Exception as e:
         print(f"❌ خطأ بروتوكول IMAP: {str(e)}")
@@ -67,7 +67,7 @@ def generate_dot_email():
 def generate_human_username():
     first = ["saeed", "osama", "ahmed", "ali", "omar", "youssef"]
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
-    return f"{random.choice(first)}_{\html.escape(random.choice(last))}{random.randint(10, 999)}"
+    return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
 # محرك الإنشاء الأوتوماتيكي للحسابات مع تكتيكات الحذر والتمويه
 async def auto_create_bot():
@@ -76,9 +76,8 @@ async def auto_create_bot():
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
     
     async with async_playwright() as p:
-        # تشغيل المتصفح مع إضافات إخفاء الهوية تماماً لحماية المزرعة من الكشف
         browser = await p.chromium.launch(
-            headless=False, 
+            headless=True, 
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-infobars"]
         )
         context = await browser.new_context(
@@ -87,7 +86,7 @@ async def auto_create_bot():
         page = await context.new_page()
         
         try:
-            await page.goto("https://tiktok.com", wait_until="networkidle")
+            await page.goto("https://www.tiktok.com/signup", wait_until="networkidle")
             await asyncio.sleep(random.uniform(2, 4))
             
             # إدخال عشوائي ببطء يحاكي حركة البشر
@@ -97,7 +96,6 @@ async def auto_create_bot():
             await asyncio.sleep(random.uniform(0.5, 1.2))
             await page.select_option('div[data-e2e="year-select"] select', value=str(random.randint(1995, 2003)))
             
-            # محاكاة سرعة الكتابة البشرية المتفاوتة
             await page.type('input[type="email"]', bot_email, delay=random.randint(70, 150))
             await page.type('input[type="password"]', password, delay=random.randint(70, 150))
             await asyncio.sleep(random.uniform(1.5, 3.0))
@@ -110,12 +108,14 @@ async def auto_create_bot():
                 verification_code = fetch_verification_code()
                 if verification_code:
                     code_input = await page.query_selector('input[placeholder*="digit"], input[placeholder*="رمز"]')
-                    await code_input.type(verification_code, delay=120)
-                    await asyncio.sleep(random.uniform(2.0, 4.0))
-                    
-                    submit_btn = await page.query_selector('button[type="submit"]')
-                    await submit_btn.click()
-                    await page.wait_for_url("https://tiktok.com", timeout=60000)
+                    if code_input:
+                        await code_input.type(verification_code, delay=120)
+                        await asyncio.sleep(random.uniform(2.0, 4.0))
+                        
+                        submit_btn = await page.query_selector('button[type="submit"]')
+                        if submit_btn:
+                            await submit_btn.click()
+                            await asyncio.sleep(5)
                     
                     with open("saeed_database.txt", "a") as f:
                         f.write(f"{bot_email},{password}\n")
@@ -134,7 +134,7 @@ async def auto_send_follows(target_username):
         accounts = f.readlines()
         
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"])
+        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
         for acc in accounts:
             if "," not in acc: continue
             email, password = acc.strip().split(",")
@@ -144,16 +144,16 @@ async def auto_send_follows(target_username):
             )
             page = await context.new_page()
             try:
-                await page.goto("https://tiktok.com")
+                await page.goto("https://www.tiktok.com/login")
+                await asyncio.sleep(3)
                 await page.type('input[type="text"]', email, delay=100)
                 await page.type('input[type="password"]', password, delay=100)
                 await page.click('button[type="submit"]')
                 await asyncio.sleep(random.uniform(5.0, 7.0))
                 
-                await page.goto(f"https://tiktok.com@{target_username}")
+                await page.goto(f"https://www.tiktok.com/@{target_username}")
                 await asyncio.sleep(random.uniform(3.0, 5.0))
                 
-                # تمرير بسيط للأسفل لإقناع النظام بأن الحساب حقيقي
                 await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 4);")
                 await asyncio.sleep(random.uniform(1.0, 2.0))
                 
@@ -166,7 +166,6 @@ async def auto_send_follows(target_username):
                 print(f"❌ خطأ مع الحساب {email}: {e}")
             finally:
                 await context.close()
-                # مهلة بين حساب وآخر لتمويه الخوارزميات
                 await asyncio.sleep(random.uniform(8.0, 15.0))
         await browser.close()
     return f"🚀 تم إطلاق الحسابات وتوجيه المتابعات بنجاح إلى @{target_username}"
@@ -202,32 +201,43 @@ HTML_DASHBOARD = """
             <h3>1️⃣ توليد وإنشاء حسابات جديدة في المزرعة</h3>
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن تلقائياً وبحذر:</label>
-يُرجى استخدام الرمز البرمجي بحذر.
-بدء التوليد الآلي الآمن ⚙️
+                <input type="number" name="count" value="1" min="1" max="10">
+                <button type="submit" class="btn">بدء التوليد الآلي الآمن ⚙️</button>
+            </form>
+        </div>
 
-2️⃣ إطلاق المتابعات للحساب المستهدف (زيادة المتابعين)
-اسم مستخدم حساب تيك توك المراد تزويده (بدون @):
-توجيه المزرعة والمتابعة الفورية تلقائياً 🚀
-
-
-
-
-
+        <div class="section">
+            <h3>2️⃣ إطلاق المتابعات للحساب المستهدف (زيادة المتابعين)</h3>
+            <form action="/send_followers" method="post">
+                <label>اسم مستخدم حساب تيك توك المراد تزويده (بدون @):</label>
+                <input type="text" name="target" placeholder="username" required>
+                <button type="submit" class="btn btn-blue">توجيه المزرعة والمتابعة الفورية تلقائياً 🚀</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
 """
+
 @app.route('/')
 def home():
-return render_template_string(HTML_DASHBOARD, msg=request.args.get('msg'))
+    return render_template_string(HTML_DASHBOARD, msg=request.args.get('msg'))
+
 @app.route('/create_bots', methods=['POST'])
 def create_bots():
-count = int(request.form.get('count', 1))
-for _ in range(count):
-asyncio.run(auto_create_bot())
-asyncio.run(asyncio.sleep(random.uniform(5.0, 10.0))) # انتظار بين عمليات التوليد للحذر
-return redirect(url_for('home', msg=f"🎉 تم الانتهاء من محاولة توليد {count} حساب وإضافتهم للمزرعة تلقائياً وبأمان!"))
+    count = int(request.form.get('count', 1))
+    for _ in range(count):
+        asyncio.run(auto_create_bot())
+        import time
+        time.sleep(random.uniform(5.0, 10.0))
+    return redirect(url_for('home', msg=f"🎉 تم الانتهاء من محاولة توليد {count} حساب وإضافتهم للمزرعة تلقائياً وبأمان!"))
+
 @app.route('/send_followers', methods=['POST'])
 def send_followers():
-target = request.form.get('target').strip()
-status_msg = asyncio.run(auto_send_follows(target))
-return redirect(url_for('home', msg=status_msg))
-if name == "main":
-app.run(port=5000, debug=False)
+    target = request.form.get('target').strip()
+    status_msg = asyncio.run(auto_send_follows(target))
+    return redirect(url_for('home', msg=status_msg))
+
+if __name__ == "__main__":
+    import time
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
