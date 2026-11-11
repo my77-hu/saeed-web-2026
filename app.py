@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 # --- إعدادات سعيد المؤتمتة بالكامل ---
 BASE_EMAIL = "saeedosama921@gmail.com"
-GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc" # تم دمج رمز الأمان الخاص بك بنجاح
+GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc"
 
 # دالة قراءة وسحب الرمز تلقائياً من Gmail في الخلفية
 def fetch_verification_code():
@@ -22,7 +22,7 @@ def fetch_verification_code():
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(BASE_EMAIL, GMAIL_APP_PASSWORD)
         
-        for _ in range(25): # الفحص الدوري لمدة دقيقتين تقريباً
+        for _ in range(25): 
             mail.select("inbox")
             status, messages = mail.search(None, '(UNSEEN FROM "tiktok.com")')
             
@@ -70,7 +70,7 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# محرك الإنشاء الأوتوماتيكي للحسابات مع تكتيكات الحذر والتمويه
+# محرك الإنشاء الأوتوماتيكي للحسابات مع معالجة الأخطاء وإرجاع حالتها للواجهة
 async def auto_create_bot():
     bot_email = generate_dot_email()
     username = generate_human_username()
@@ -90,7 +90,7 @@ async def auto_create_bot():
             await page.goto("https://www.tiktok.com/signup", wait_until="networkidle")
             await asyncio.sleep(random.uniform(3, 5))
             
-            # محاولة النقر على زر "Use phone or email" إذا ظهر في الواجهة الجديدة
+            # محاولة النقر على زر "Use phone or email" إذا ظهر
             try:
                 email_signup_btn = await page.query_selector('text="Use phone or email", text="استخدام الهاتف أو البريد الإليكتروني"')
                 if email_signup_btn:
@@ -99,21 +99,20 @@ async def auto_create_bot():
             except:
                 pass
 
-            # إدخال تاريخ الميلاد مع محددات بديلة أكثر مرونة لمنع الـ Timeout
+            # محاولة التعامل مع اختيار تاريخ الميلاد بأمان بدون تجميد السكريبت
             try:
+                await page.wait_for_selector('div[data-e2e="month-select"] select', timeout=5000)
                 await page.select_option('div[data-e2e="month-select"] select', index=random.randint(1, 12))
-                await asyncio.sleep(0.5)
                 await page.select_option('div[data-e2e="day-select"] select', index=random.randint(1, 28))
-                await asyncio.sleep(0.5)
                 await page.select_option('div[data-e2e="year-select"] select', value=str(random.randint(1995, 2003)))
             except Exception as select_err:
-                print(f"⚠️ تعذر اختيار التاريخ بالشكل التقليدي، جاري المحاولة عبر القوائم البديلة: {select_err}")
-                selects = await page.query_selector_all('select')
-                if len(selects) >= 3:
-                    await selects[0].select_option(index=random.randint(1, 12))
-                    await selects[1].select_option(index=random.randint(1, 28))
-                    await selects[2].select_option(value=str(random.randint(1995, 2003)))
-            
+                print(f"⚠️ تجاوزنا خطوة التاريخ التقليدي لعدم مطابقة العناصر: {select_err}")
+
+            # محاولة إدخال البريد الإلكتروني
+            email_input = await page.wait_for_selector('input[type="email"]', timeout=10000)
+            if not email_input:
+                return False, "⚠️ فشل العثور على حقل البريد الإلكتروني (قد تكون الصفحة محمية أو تغيرت الواجهة)."
+
             await page.type('input[type="email"]', bot_email, delay=random.randint(70, 150))
             await page.type('input[type="password"]', password, delay=random.randint(70, 150))
             await asyncio.sleep(random.uniform(1.5, 3.0))
@@ -137,13 +136,16 @@ async def auto_create_bot():
                     
                     with open("saeed_database.txt", "a") as f:
                         f.write(f"{bot_email},{password}\n")
-                    print(f"🎉 تم حفظ الحساب الجديد بنجاح في المزرعة: {bot_email}")
+                    return True, f"🎉 تم حفظ الحساب الجديد بنجاح في المزرعة: {bot_email}"
+            
+            return False, "⚠️ لم يتم العثور على زر إرسال الرمز (ربما ظهرت صفحة التحقق البشري Captcha)."
+            
         except Exception as e:
-            print(f"⚠️ فشل التسجيل التلقائي: {e}")
+            return False, f"⚠️ خطأ أثناء التسجيل التلقائي: {str(e)}"
         finally:
             await browser.close()
 
-# محرك توجيه المتابعات الفورية لحساب العميل بأسلوب إنساني
+# محرك توجيه المتابعات الفورية
 async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
@@ -188,7 +190,7 @@ async def auto_send_follows(target_username):
         await browser.close()
     return f"🚀 تم إطلاق الحسابات وتوجيه المتابعات بنجاح إلى @{target_username}"
 
-# واجهة لوحة تحكم الويب الرسومية المباشرة لسعيد
+# واجهة لوحة تحكم الويب الرسومية
 HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -244,10 +246,14 @@ def home():
 @app.route('/create_bots', methods=['POST'])
 def create_bots():
     count = int(request.form.get('count', 1))
+    last_msg = ""
     for _ in range(count):
-        asyncio.run(auto_create_bot())
+        success, msg = asyncio.run(auto_create_bot())
+        last_msg = msg
+        if not success:
+            break  # توقف عن المحاولة إذا حدث خطأ لكي يظهر للمستخدم في الواجهة
         time.sleep(random.uniform(5.0, 10.0))
-    return redirect(url_for('home', msg=f"🎉 تم الانتهاء من محاولة توليد {count} حساب وإضافتهم للمزرعة تلقائياً وبأمان!"))
+    return redirect(url_for('home', msg=last_msg))
 
 @app.route('/send_followers', methods=['POST'])
 def send_followers():
