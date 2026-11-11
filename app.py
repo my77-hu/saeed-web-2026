@@ -5,6 +5,7 @@ import imaplib
 import email
 import re
 import html
+import time
 from flask import Flask, render_template_string, request, redirect, url_for
 from playwright.async_api import async_playwright
 
@@ -87,14 +88,31 @@ async def auto_create_bot():
         
         try:
             await page.goto("https://www.tiktok.com/signup", wait_until="networkidle")
-            await asyncio.sleep(random.uniform(2, 4))
+            await asyncio.sleep(random.uniform(3, 5))
             
-            # إدخال عشوائي ببطء يحاكي حركة البشر
-            await page.select_option('div[data-e2e="month-select"] select', index=random.randint(1, 12))
-            await asyncio.sleep(random.uniform(0.5, 1.2))
-            await page.select_option('div[data-e2e="day-select"] select', index=random.randint(1, 28))
-            await asyncio.sleep(random.uniform(0.5, 1.2))
-            await page.select_option('div[data-e2e="year-select"] select', value=str(random.randint(1995, 2003)))
+            # محاولة النقر على زر "Use phone or email" إذا ظهر في الواجهة الجديدة
+            try:
+                email_signup_btn = await page.query_selector('text="Use phone or email", text="استخدام الهاتف أو البريد الإليكتروني"')
+                if email_signup_btn:
+                    await email_signup_btn.click()
+                    await asyncio.sleep(2)
+            except:
+                pass
+
+            # إدخال تاريخ الميلاد مع محددات بديلة أكثر مرونة لمنع الـ Timeout
+            try:
+                await page.select_option('div[data-e2e="month-select"] select', index=random.randint(1, 12))
+                await asyncio.sleep(0.5)
+                await page.select_option('div[data-e2e="day-select"] select', index=random.randint(1, 28))
+                await asyncio.sleep(0.5)
+                await page.select_option('div[data-e2e="year-select"] select', value=str(random.randint(1995, 2003)))
+            except Exception as select_err:
+                print(f"⚠️ تعذر اختيار التاريخ بالشكل التقليدي، جاري المحاولة عبر القوائم البديلة: {select_err}")
+                selects = await page.query_selector_all('select')
+                if len(selects) >= 3:
+                    await selects[0].select_option(index=random.randint(1, 12))
+                    await selects[1].select_option(index=random.randint(1, 28))
+                    await selects[2].select_option(value=str(random.randint(1995, 2003)))
             
             await page.type('input[type="email"]', bot_email, delay=random.randint(70, 150))
             await page.type('input[type="password"]', password, delay=random.randint(70, 150))
@@ -228,7 +246,6 @@ def create_bots():
     count = int(request.form.get('count', 1))
     for _ in range(count):
         asyncio.run(auto_create_bot())
-        import time
         time.sleep(random.uniform(5.0, 10.0))
     return redirect(url_for('home', msg=f"🎉 تم الانتهاء من محاولة توليد {count} حساب وإضافتهم للمزرعة تلقائياً وبأمان!"))
 
@@ -239,5 +256,4 @@ def send_followers():
     return redirect(url_for('home', msg=status_msg))
 
 if __name__ == "__main__":
-    import time
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
