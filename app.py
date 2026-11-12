@@ -6,6 +6,7 @@ import email
 import re
 import html
 import time
+from datetime import datetime
 from flask import Flask, render_template_string, request, redirect, url_for
 from playwright.async_api import async_playwright
 
@@ -13,6 +14,8 @@ app = Flask(__name__)
 
 BASE_EMAIL = "saeedosama921@gmail.com"
 GMAIL_APP_PASSWORD = "lxowejdbwlrdtblc"
+DIAGNOSTICS_DIR = "./diagnostics"
+os.makedirs(DIAGNOSTICS_DIR, exist_ok=True)
 
 def fetch_verification_code():
     print("📥 يتصل السكريبت بصندوق الوارد في Gmail بانتظار الرمز تلقائياً...")
@@ -73,8 +76,22 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# محرك الإنشاء الأوتوماتيكي المصحح للتبديل الفوري إلى الإيميل
-async def auto_create_bot_exact_flow():
+# دالة مساعدة لحفظ لقطات الشاشة وملفات الـ HTML للتشخيص التلقائي
+async def save_diagnostic(page, step_name):
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    screenshot_path = os.path.join(DIAGNOSTICS_DIR, f"{step_name}-{timestamp}.png")
+    html_path = os.path.join(DIAGNOSTICS_DIR, f"{step_name}-{timestamp}.html")
+    try:
+        await page.screenshot(path=screenshot_path, full_page=True)
+        html_content = await page.content()
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        print(f"📸 تم حفظ لقطة الشاشة وملف التشخيص في: {screenshot_path}")
+    except Exception as e:
+        print(f"⚠️ فشل حفظ التشخيص: {e}")
+
+# محرك الإنشاء الأوتوماتيكي مع التصحيح التام لتسلسل الشاشات والتقاط الصور
+async def auto_create_bot_with_diagnostics():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -109,10 +126,42 @@ async def auto_create_bot_exact_flow():
         try:
             print("🌐 الانتقال إلى صفحة التسجيل في تيك توك...")
             await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
-            await asyncio.sleep(random.uniform(4, 6))
+            await asyncio.sleep(4)
             
-            # الخطوة الحاسمة: الضغط على رابط "Sign up with email" الظاهر في الصورة لتغيير واجهة الهاتف إلى واجهة البريد
-            print("🖱️ البحث عن رابط 'Sign up with email' للتبديل إلى الإيميل...")
+            # حفظ لقطة الشاشة للشاشة الأولى (تأكيد ظهور زر Use phone or email)
+            await save_diagnostic(page, "step1-initial-screen")
+
+            # الخطوة 1: النقر على زر "Use phone or email" الظاهر في الصورة الأولى
+            print("🖱️ النقر على زر 'Use phone or email'...")
+            first_btn_selectors = [
+                'text="Use phone or email"',
+                '[data-e2e="signup-phone-or-email"]',
+                'div:has-text("Use phone or email")',
+                'button:has-text("Use phone or email")'
+            ]
+            
+            clicked_first = False
+            for sel in first_btn_selectors:
+                try:
+                    btn = await page.wait_for_selector(sel, timeout=5000)
+                    if btn:
+                        await btn.click()
+                        clicked_first = True
+                        print("✅ تم النقر على 'Use phone or email' بنجاح!")
+                        await asyncio.sleep(3)
+                        break
+                except:
+                    continue
+            
+            if not clicked_first:
+                await save_diagnostic(page, "error-fail-click-phone-or-email")
+                return False, "تعذر العثور على زر Use phone or email في الشاشة الأولى."
+
+            # حفظ لقطة شاشة بعد الانتقال للصفحة التالية
+            await save_diagnostic(page, "step2-after-phone-or-email")
+
+            # الخطوة 2: النقر على رابط "Sign up with email" للتحول من الهاتف إلى البريد
+            print("🖱️ البحث عن رابط 'Sign up with email' للتبديل إلى حقل البريد...")
             email_toggle_selectors = [
                 'text="Sign up with email"',
                 'a:has-text("Sign up with email")',
@@ -127,17 +176,20 @@ async def auto_create_bot_exact_flow():
                     if toggle_btn:
                         await toggle_btn.click()
                         toggled = True
-                        print("✅ تم النقر على 'Sign up with email' وتحويل النموذج إلى البريد بنجاح!")
+                        print("✅ تم النقر على 'Sign up with email' وتحويل النموذج بنجاح!")
                         await asyncio.sleep(2)
                         break
                 except:
                     continue
             
             if not toggled:
-                print("⚠️ لم يتم العثور على رابط التبديل التقليدي، جاري محاولة التمرير أو البحث البديل...")
+                print("⚠️ رابط Sign up with email لم يظهر كالنص المعتاد، جاري فحص ما إذا كان الحقل معروضاً مباشرة...")
 
-            # الآن حقل البريد الإلكتروني ظهر تماماً على الشاشة، نبحث عنه
-            print("⌨️ البحث عن حقل إدخال البريد الإلكتروني الفعلي...")
+            # حفظ لقطة شاشة بعد محاولة التبديل للبريد
+            await save_diagnostic(page, "step3-email-input-screen")
+
+            # الخطوة 3: البحث عن حقل إدخال البريد الإلكتروني الفعلي
+            print("⌨️ البحث عن حقل إدخال البريد الإلكتروني...")
             email_selectors = [
                 'input[type="email"]', 
                 'input[name="email"]', 
@@ -157,7 +209,8 @@ async def auto_create_bot_exact_flow():
                     continue
             
             if not email_field:
-                return False, "تعذر ظهور حقل البريد الإلكتروني بعد محاولة التبديل."
+                await save_diagnostic(page, "error-email-field-not-found")
+                return False, "تعذر ظهور حقل البريد الإلكتروني بعد خطوات التبديل."
 
             # إدخال البريد الإلكتروني ببطء بشري
             await email_field.click()
@@ -182,6 +235,9 @@ async def auto_create_bot_exact_flow():
                     await pass_field.type(char, delay=random.randint(100, 180))
                 await asyncio.sleep(1.5)
 
+            # حفظ لقطة الشاشة بعد إدخال البيانات وقبل إرسال الرمز
+            await save_diagnostic(page, "step4-data-entered")
+
             # النقر على زر إرسال الرمز
             send_btn_selectors = [
                 'button:has-text("Send code")', 
@@ -202,6 +258,7 @@ async def auto_create_bot_exact_flow():
                     continue
 
             if not clicked_send:
+                await save_diagnostic(page, "error-send-code-btn-missing")
                 return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
 
             print("⏳ الانتظار لجلب الرمز من Gmail تلقائياً...")
@@ -240,9 +297,11 @@ async def auto_create_bot_exact_flow():
                     f.write(f"{bot_email},{password}\n")
                 return True, f"🎉 تم إنشاء الحساب وحفظه في المزرعة بنجاح: {bot_email}"
             else:
+                await save_diagnostic(page, "error-verification-code-timeout")
                 return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني."
 
         except Exception as e:
+            await save_diagnostic(page, "error-exception-occurred")
             return False, f"⚠️ حدث خطأ أثناء التشغيل: {str(e)}"
         finally:
             await browser.close()
@@ -294,7 +353,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - النسخة النهائية المكتملة</title>
+    <title>منظومة سعيد الذكية - مع نظام التشخيص التلقائي</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -308,8 +367,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد النهائية</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام تكتيك التبديل للإيميل والتشغيل الآلي | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد المطورة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام التشخيص التلقائي وصور اللقطات | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -320,7 +379,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الصحيح الآن ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد مع التشخيص ⚙️</button>
             </form>
         </div>
 
@@ -346,7 +405,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_exact_flow())
+        success, msg = asyncio.run(auto_create_bot_with_diagnostics())
         last_msg = msg
         if not success:
             break
