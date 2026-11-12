@@ -76,7 +76,6 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# دالة مساعدة لحفظ لقطات الشاشة وملفات الـ HTML للتشخيص التلقائي
 async def save_diagnostic(page, step_name):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     screenshot_path = os.path.join(DIAGNOSTICS_DIR, f"{step_name}-{timestamp}.png")
@@ -86,12 +85,12 @@ async def save_diagnostic(page, step_name):
         html_content = await page.content()
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        print(f"📸 تم حفظ لقطة الشاشة وملف التشخيص في: {screenshot_path}")
+        print(f"📸 تم حفظ التشخيص في: {screenshot_path}")
     except Exception as e:
         print(f"⚠️ فشل حفظ التشخيص: {e}")
 
-# محرك الإنشاء الأوتوماتيكي مع التصحيح التام لتسلسل الشاشات والتقاط الصور
-async def auto_create_bot_with_diagnostics():
+# محرك الإنشاء المحدث مع اختيار تاريخ الميلاد وتفعيل زر إرسال الرمز
+async def auto_create_bot_complete():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -128,10 +127,9 @@ async def auto_create_bot_with_diagnostics():
             await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(4)
             
-            # حفظ لقطة الشاشة للشاشة الأولى (تأكيد ظهور زر Use phone or email)
-            await save_diagnostic(page, "step1-initial-screen")
+            await save_diagnostic(page, "step1-initial")
 
-            # الخطوة 1: النقر على زر "Use phone or email" الظاهر في الصورة الأولى
+            # الخطوة 1: النقر على زر "Use phone or email"
             print("🖱️ النقر على زر 'Use phone or email'...")
             first_btn_selectors = [
                 'text="Use phone or email"',
@@ -155,13 +153,12 @@ async def auto_create_bot_with_diagnostics():
             
             if not clicked_first:
                 await save_diagnostic(page, "error-fail-click-phone-or-email")
-                return False, "تعذر العثور على زر Use phone or email في الشاشة الأولى."
+                return False, "تعذر العثور على زر Use phone or email."
 
-            # حفظ لقطة شاشة بعد الانتقال للصفحة التالية
             await save_diagnostic(page, "step2-after-phone-or-email")
 
-            # الخطوة 2: النقر على رابط "Sign up with email" للتحول من الهاتف إلى البريد
-            print("🖱️ البحث عن رابط 'Sign up with email' للتبديل إلى حقل البريد...")
+            # الخطوة 2: النقر على رابط "Sign up with email"
+            print("🖱️ النقر على رابط 'Sign up with email' للتبديل إلى الإيميل...")
             email_toggle_selectors = [
                 'text="Sign up with email"',
                 'a:has-text("Sign up with email")',
@@ -176,137 +173,99 @@ async def auto_create_bot_with_diagnostics():
                     if toggle_btn:
                         await toggle_btn.click()
                         toggled = True
-                        print("✅ تم النقر على 'Sign up with email' وتحويل النموذج بنجاح!")
+                        print("✅ تم التبديل إلى نموذج البريد الإلكتروني بنجاح!")
                         await asyncio.sleep(2)
                         break
                 except:
                     continue
-            
-            if not toggled:
-                print("⚠️ رابط Sign up with email لم يظهر كالنص المعتاد، جاري فحص ما إذا كان الحقل معروضاً مباشرة...")
 
-            # حفظ لقطة شاشة بعد محاولة التبديل للبريد
-            await save_diagnostic(page, "step3-email-input-screen")
+            await save_diagnostic(page, "step3-email-form")
 
-            # الخطوة 3: البحث عن حقل إدخال البريد الإلكتروني الفعلي
-            print("⌨️ البحث عن حقل إدخال البريد الإلكتروني...")
-            email_selectors = [
-                'input[type="email"]', 
-                'input[name="email"]', 
-                'input[placeholder*="email" i]', 
-                'input[placeholder*="البريد" i]',
-                'input[autocomplete="username"]'
-            ]
-            
-            email_field = None
-            for sel in email_selectors:
+            # الخطوة 3: تحديد تاريخ الميلاد (ضروري لتفعيل زر إرسال الرمز)
+            print("📅 تحديد تاريخ الميلاد لتفعيل النموذج...")
+            try:
+                # اختيار الشهر (الشهر الثاني مثلاً)
+                await page.select_option('select:near(:text("Month"))', index=random.randint(1, 12))
+                await asyncio.sleep(0.5)
+                # اختيار اليوم
+                await page.select_option('select:near(:text("Day"))', index=random.randint(1, 28))
+                await asyncio.sleep(0.5)
+                # اختيار السنة (مثلاً 1995)
+                await page.select_option('select:near(:text("Year"))', value="1995")
+                await asyncio.sleep(1)
+                print("✅ تم تحديد تاريخ الميلاد بنجاح!")
+            except Exception as e:
+                print(f"⚠️ ملاحظة حول اختيار تاريخ الميلاد عبر التحديد المباشر: {e}")
+                # محاولة بديلة عبر القوائم المنسدلة العامة في الصفحة
                 try:
-                    email_field = await page.wait_for_selector(sel, timeout=7000)
-                    if email_field:
-                        print(f"✅ تم العثور على حقل البريد بنجاح عبر المحدد: {sel}")
-                        break
-                except:
-                    continue
-            
-            if not email_field:
-                await save_diagnostic(page, "error-email-field-not-found")
-                return False, "تعذر ظهور حقل البريد الإلكتروني بعد خطوات التبديل."
+                    selects = await page.query_selector_all('select')
+                    if len(selects) >= 3:
+                        await selects[0].select_option(index=random.randint(1, 12))
+                        await selects[1].select_option(index=random.randint(1, 28))
+                        await selects[2].select_option(value="1995")
+                        print("✅ تم تحديد التاريخ بالقوائم البديلة بنجاح!")
+                except Exception as ex:
+                    print(f"⚠️ فشل تحديد التاريخ البديل: {ex}")
 
-            # إدخال البريد الإلكتروني ببطء بشري
+            # الخطوة 4: إدخال البريد الإلكتروني
+            print("⌨️ إدخال البريد الإلكتروني...")
+            email_field = await page.wait_for_selector('input[name="email"], input[type="email"]', timeout=7000)
             await email_field.click()
             for char in bot_email:
-                await email_field.type(char, delay=random.randint(100, 180))
+                await email_field.type(char, delay=random.randint(100, 150))
             await asyncio.sleep(1)
 
-            # إدخال كلمة المرور
-            pass_selectors = ['input[type="password"]', 'input[name="password"]', 'input[placeholder*="password" i]']
-            pass_field = None
-            for sel in pass_selectors:
-                try:
-                    pass_field = await page.wait_for_selector(sel, timeout=5000)
-                    if pass_field:
-                        break
-                except:
-                    continue
+            # الخطوة 5: إدخال كلمة المرور
+            print("⌨️ إدخال كلمة المرور...")
+            pass_field = await page.wait_for_selector('input[type="password"]', timeout=5000)
+            await pass_field.click()
+            for char in password:
+                await pass_field.type(char, delay=random.randint(100, 150))
+            await asyncio.sleep(1.5)
 
-            if pass_field:
-                await pass_field.click()
-                for char in password:
-                    await pass_field.type(char, delay=random.randint(100, 180))
-                await asyncio.sleep(1.5)
+            await save_diagnostic(page, "step4-data-filled")
 
-            # حفظ لقطة الشاشة بعد إدخال البيانات وقبل إرسال الرمز
-            await save_diagnostic(page, "step4-data-entered")
+            # الخطوة 6: الضغط على زر إرسال الرمز الآن وقد أصبح مفَعلاً
+            print("📨 الضغط على زر إرسال الرمز (Send code)...")
+            send_btn = await page.wait_for_selector('button:has-text("Send code"), [data-e2e="send-code-button"]', timeout=5000)
+            
+            # التأكد من أن الزر غير معطل قبل النقر
+            is_disabled = await send_btn.get_attribute("disabled")
+            if is_disabled is not None:
+                await save_diagnostic(page, "error-send-code-still-disabled")
+                return False, "⚠️ زر إرسال الرمز ما زال معطلاً (تحقق من حقول تاريخ الميلاد)."
 
-            # النقر على زر إرسال الرمز
-            send_btn_selectors = [
-                'button:has-text("Send code")', 
-                'button:has-text("إرسال الرمز")', 
-                'button[type="submit"]', 
-                '[data-e2e="send-code-button"]'
-            ]
-            clicked_send = False
-            for sel in send_btn_selectors:
-                try:
-                    btn = await page.query_selector(sel)
-                    if btn:
-                        await btn.click()
-                        clicked_send = True
-                        print("📨 تم النقر على زر إرسال الرمز بنجاح تام!")
-                        break
-                except:
-                    continue
-
-            if not clicked_send:
-                await save_diagnostic(page, "error-send-code-btn-missing")
-                return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
-
-            print("⏳ الانتظار لجلب الرمز من Gmail تلقائياً...")
+            await send_btn.click()
+            print("✅ تم النقر على زر إرسال الرمز بنجاح تام!")
             await asyncio.sleep(8)
             
-            # سحب الرمز من Gmail
+            # الخطوة 7: سحب الرمز من Gmail
             verification_code = fetch_verification_code()
             if verification_code:
-                code_selectors = ['input[placeholder*="digit" i]', 'input[placeholder*="رمز" i]', 'input[name="code"]', 'input[maxlength="6"]']
-                code_field = None
-                for sel in code_selectors:
-                    try:
-                        code_field = await page.wait_for_selector(sel, timeout=5000)
-                        if code_field:
-                            break
-                    except:
-                        continue
+                code_field = await page.wait_for_selector('input[placeholder*="digit" i], input[name="code"], input[maxlength="6"]', timeout=5000)
+                await code_field.click()
+                await code_field.type(verification_code, delay=100)
+                await asyncio.sleep(2)
                 
-                if code_field:
-                    await code_field.click()
-                    await code_field.type(verification_code, delay=120)
-                    await asyncio.sleep(2)
-                    
-                    submit_selectors = ['button[type="submit"]', 'button:has-text("Next")', 'button:has-text("التالي")']
-                    for sel in submit_selectors:
-                        try:
-                            sub_btn = await page.query_selector(sel)
-                            if sub_btn:
-                                await sub_btn.click()
-                                await asyncio.sleep(4)
-                                break
-                        except:
-                            continue
+                # الضغط على التالي / التأكيد
+                submit_btn = await page.query_selector('button[type="submit"], button:has-text("Next"), button:has-text("التالي")')
+                if submit_btn:
+                    await submit_btn.click()
+                    await asyncio.sleep(4)
 
                 with open("saeed_database.txt", "a") as f:
                     f.write(f"{bot_email},{password}\n")
                 return True, f"🎉 تم إنشاء الحساب وحفظه في المزرعة بنجاح: {bot_email}"
             else:
-                await save_diagnostic(page, "error-verification-code-timeout")
+                await save_diagnostic(page, "error-code-timeout")
                 return False, "⚠️ لم يتم استقبال رمز التفعيل من تيك توك في البريد الإلكتروني."
 
         except Exception as e:
-            await save_diagnostic(page, "error-exception-occurred")
+            await save_diagnostic(page, "error-exception")
             return False, f"⚠️ حدث خطأ أثناء التشغيل: {str(e)}"
         finally:
             await browser.close()
 
-# دالة إرسال المتابعات
 async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
@@ -353,7 +312,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - مع نظام التشخيص التلقائي</title>
+    <title>منظومة سعيد الذكية - النسخة التامة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -367,8 +326,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد المطورة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام التشخيص التلقائي وصور اللقطات | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد التامة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة الحسابات المتكامل مع تحديد الميلاد | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -379,7 +338,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد مع التشخيص ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الشامل الآن ⚙️</button>
             </form>
         </div>
 
@@ -405,7 +364,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_with_diagnostics())
+        success, msg = asyncio.run(auto_create_bot_complete())
         last_msg = msg
         if not success:
             break
