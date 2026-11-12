@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import re
 from flask import Flask, render_template_string, request, redirect, url_for
 
 app = Flask(__name__)
@@ -17,7 +18,6 @@ def generate_temp_email():
                 return emails[0]
     except Exception as e:
         print(f"⚠️ خطأ في توليد البريد المؤقت: {e}")
-    # بريد احتياطي في حال انقطع اتصال الـ API المؤقت
     return "saeed.bot.2026@esiix.com"
 
 # دالة فحص وسحب الرمز من صندوق البريد المؤقت
@@ -26,13 +26,12 @@ def fetch_temp_mail_code(email_address):
         login, domain = email_address.split('@')
         url = f"https://www.1secmail.com/api/v1/?action=getMessages&login={login}&domain={domain}"
         
-        print(جاري مراقبة صندوق الوارد للبريد المؤقت: {email_address}...)
-        for _ in range(20): # محاولات الاستماع لمدة دقيقة تقريباً
+        print(f"📥 جاري مراقبة صندوق الوارد للبريد المؤقت: {email_address}...")
+        for _ in range(20):
             response = requests.get(url)
             if response.status_code == 200:
                 messages = response.json()
                 if messages:
-                    # جلب تفاصيل الرسالة الأحدث
                     msg_id = messages[0]['id']
                     msg_url = f"https://www.1secmail.com/api/v1/?action=readMessage&login={login}&domain={domain}&id={msg_id}"
                     msg_res = requests.get(msg_url)
@@ -41,8 +40,6 @@ def fetch_temp_mail_code(email_address):
                         body = msg_data.get('body', '')
                         subject = msg_data.get('subject', '')
                         
-                        # البحث عن رمز مكون من 6 أرقام
-                        import re
                         code_match = re.search(r'\b\d{6}\b', body + " " + subject)
                         if code_match:
                             return code_match.group(0)
@@ -89,7 +86,6 @@ HTML_DASHBOARD = """
             <div class="alert">{{ msg }}</div>
         {% endif %}
 
-        <!-- الخطوة 1: البريد المؤقت الحالي -->
         <div class="section">
             <h3>1️⃣ البريد المؤقت المخصص لتسجيل حساب جديد</h3>
             <p style="font-size: 14px; color: #555;">انسخ هذا البريد وسجل به يدوياً في تيك توك:</p>
@@ -100,7 +96,6 @@ HTML_DASHBOARD = """
             </form>
         </div>
 
-        <!-- الخطوة 2: فحص الرمز أو حفظ الحساب -->
         <div class="section">
             <h3>2️⃣ فحص وصول الرمز الحقيقي للبريد المؤقت</h3>
             <form action="/check_code" method="post">
@@ -120,7 +115,6 @@ HTML_DASHBOARD = """
             </form>
         </div>
 
-        <!-- الحسابات المخزنة -->
         <div class="section">
             <h3>📂 الحسابات الجاهزة في المزرعة ({{ accounts_count }})</h3>
             <div class="accounts-list">
@@ -179,4 +173,4 @@ def save_account():
     return redirect(url_for('home', msg=msg))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.com.get("PORT", 5000) if hasattr(os.environ, 'get') else 5000), debug=False)
