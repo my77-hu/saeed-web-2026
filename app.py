@@ -73,18 +73,15 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# محرك الإنشاء الأوتوماتيكي باستخدام مسار بيانات دائم (Persistent Context) لتخطي Cloudflare
-async def auto_create_bot_persistent():
+# محرك الإنشاء الأوتوماتيكي مع تكتيك التمويه البصمي المتقدم لتجاوز Cloudflare
+async def auto_create_bot_advanced():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
     
-    user_data_dir = "./saeed_browser_profile"
-    
     async with async_playwright() as p:
-        # استخدام Persistent Context لحفظ الـ Cookies وجلسة التصفح وتجنب اكتشاف Cloudflare المتكرر
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=user_data_dir,
+        # تشغيل المتصفح بخصائص عزل متقدمة جداً
+        browser = await p.chromium.launch(
             headless=True,
             args=[
                 "--disable-blink-features=AutomationControlled",
@@ -92,37 +89,64 @@ async def auto_create_bot_persistent():
                 "--disable-infobars",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
+                "--disable-setuid-sandbox",
                 "--no-first-run",
-                "--disable-extensions"
-            ],
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            viewport={"width": 1366, "height": 768},
-            locale="en-US"
+                "--no-service-autorun",
+                "--window-size=1920,1080",
+                "--disable-web-security"
+            ]
         )
         
-        # حقن برمجيات إخفاء الأتمتة المتقدمة
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            viewport={"width": 1920, "height": 1080},
+            locale="en-US",
+            timezone_id="America/New_York",
+            permissions=["geolocation"]
+        )
+        
+        # حقن مكثف لتعديل معالم البصمة البرمجية وتضليل Cloudflare
         await context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {get: () => false});
             window.navigator.chrome = {runtime: {}};
             Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
             Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            
+            // خداع فحص الـ WebGL
+            const getParameterProxyHandler = {
+                apply: function(target, ctx, args) {
+                    if (args === 37445) return 'Intel Inc.';
+                    if (args === 37446) return 'Intel Iris OpenGL Engine';
+                    return Reflect.apply(target, ctx, args);
+                }
+            };
+            try {
+                WebGLRenderingContext.prototype.getParameter = new Proxy(WebGLRenderingContext.prototype.getParameter, getParameterProxyHandler);
+            } catch(e) {}
         """)
         
-        pages = context.pages
-        page = pages[0] if pages else await context.new_page()
+        page = await context.new_page()
         
         try:
-            print("🌐 الاتصال بصفحة تيك توك عبر الجلسة الدائمة...")
-            await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
-            await asyncio.sleep(random.uniform(5, 7))
-            
-            # التحقق مما إذا ظهرت صفحة Cloudflare
-            content = await page.content()
-            if "Cloudflare" in content or "Verifying you are human" in content:
-                print("⚠️ تم رصد تحدي Cloudflare، جاري الانتظار قليلاً لتجاوزه التلقائي...")
-                await asyncio.sleep(10)
+            print("🌐 مرحلة التمهيد وتوليد الجلسة النظيفة...")
+            # زيارة موقع وسيط أولاً لتكوين كوكيز شرعية
+            await page.goto("https://www.google.com", wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(random.uniform(2, 4))
 
-            # البحث عن حقل البريد الإلكتروني
+            print("🌐 الانتقال الذكي إلى بوابة تيك توك...")
+            await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(random.uniform(6, 9))
+            
+            # فحص وجود تحدي Cloudflare ومحاولة الانتظار لحله تلقائياً إن وجد
+            for _ in range(3):
+                content = await page.content()
+                if "Cloudflare" in content or "Verifying you are human" in content or "challenge" in content:
+                    print("⚠️ رصدنا صفحة التحقق، جاري الانتظار لحلها تلقائياً...")
+                    await asyncio.sleep(6)
+                else:
+                    break
+
+            # البحث عن حقل الإيميل بمرونة مطلقة
             email_selectors = [
                 'input[type="email"]', 
                 'input[name="email"]', 
@@ -134,19 +158,20 @@ async def auto_create_bot_persistent():
             email_field = None
             for sel in email_selectors:
                 try:
-                    email_field = await page.wait_for_selector(sel, timeout=10000)
+                    email_field = await page.wait_for_selector(sel, timeout=12000)
                     if email_field:
+                        print(f"✅ تم العثور على حقل البريد بنجاح عبر: {sel}")
                         break
                 except:
                     continue
             
             if not email_field:
-                return False, "⚠️ ما زال نظام الحماية يفرض تحدياً أمنياً (Cloudflare Challenge)."
+                return False, "⚠️ تكتيك Cloudflare الأمني لا يزال يحجب النموذج. يرجى المحاولة لاحقاً أو استخدام بروكسي نقي."
 
-            # كتابة الإيميل ببطء بشري
+            # كتابة الإيميل ببطء يحاكي البشر
             await email_field.click()
             for char in bot_email:
-                await email_field.type(char, delay=random.randint(100, 200))
+                await email_field.type(char, delay=random.randint(120, 220))
             await asyncio.sleep(1)
 
             # كتابة كلمة المرور
@@ -163,7 +188,7 @@ async def auto_create_bot_persistent():
             if pass_field:
                 await pass_field.click()
                 for char in password:
-                    await pass_field.type(char, delay=random.randint(100, 200))
+                    await pass_field.type(char, delay=random.randint(120, 220))
                 await asyncio.sleep(1.5)
 
             # النقر على زر إرسال الرمز
@@ -180,7 +205,7 @@ async def auto_create_bot_persistent():
                     if btn:
                         await btn.click()
                         clicked_send = True
-                        print("📨 تم النقر على زر إرسال الرمز بنجاح!")
+                        print("📨 تم النقر على زر إرسال الرمز بنجاح تام!")
                         break
                 except:
                     continue
@@ -188,7 +213,7 @@ async def auto_create_bot_persistent():
             if not clicked_send:
                 return False, "⚠️ لم يتم العثور على زر إرسال رمز التحقق."
 
-            print("⏳ الانتظار لجلب الرمز من Gmail...")
+            print("⏳ الانتظار لجلب الرمز من Gmail تلقائياً...")
             await asyncio.sleep(8)
             
             # سحب الرمز من Gmail
@@ -229,7 +254,7 @@ async def auto_create_bot_persistent():
         except Exception as e:
             return False, f"⚠️ خطأ أثناء التشغيل: {str(e)}"
         finally:
-            await context.close()
+            await browser.close()
 
 # دالة إرسال المتابعات
 async def auto_send_follows(target_username):
@@ -246,7 +271,7 @@ async def auto_send_follows(target_username):
             email, password = acc.strip().split(",")
             
             context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
             try:
@@ -278,7 +303,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - الجلسة الدائمة</title>
+    <title>منظومة سعيد الذكية - النسخة المتقدمة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -292,8 +317,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد الذكية</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام الجلسات الدائمة لتجاوز الحماية | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد المتقدمة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام التمويه البصمي المتقدم | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -304,7 +329,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الذكي الدائم ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الذكي المتقدم ⚙️</button>
             </form>
         </div>
 
@@ -330,7 +355,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_persistent())
+        success, msg = asyncio.run(auto_create_bot_advanced())
         last_msg = msg
         if not success:
             break
