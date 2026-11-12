@@ -89,8 +89,8 @@ async def save_diagnostic(page, step_name):
     except Exception as e:
         print(f"⚠️ فشل حفظ التشخيص: {e}")
 
-# محرك الإنشاء المحدث مع اختيار تاريخ الميلاد وتفعيل زر إرسال الرمز
-async def auto_create_bot_complete():
+# محرك الإنشاء المحدث للتعامل مع القوائم المخصصة لتاريخ الميلاد
+async def auto_create_bot_final():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -181,31 +181,43 @@ async def auto_create_bot_complete():
 
             await save_diagnostic(page, "step3-email-form")
 
-            # الخطوة 3: تحديد تاريخ الميلاد (ضروري لتفعيل زر إرسال الرمز)
-            print("📅 تحديد تاريخ الميلاد لتفعيل النموذج...")
+            # الخطوة 3: تحديد تاريخ الميلاد عبر التفاعل مع القوائم المخصصة (Custom Combobox/Dropdowns)
+            print("📅 تحديد تاريخ الميلاد للقوائم المخصصة...")
             try:
-                # اختيار الشهر (الشهر الثاني مثلاً)
-                await page.select_option('select:near(:text("Month"))', index=random.randint(1, 12))
-                await asyncio.sleep(0.5)
-                # اختيار اليوم
-                await page.select_option('select:near(:text("Day"))', index=random.randint(1, 28))
-                await asyncio.sleep(0.5)
-                # اختيار السنة (مثلاً 1995)
-                await page.select_option('select:near(:text("Year"))', value="1995")
+                # النقر على قائمة الشهر
+                await page.click('div:has-text("Month")')
                 await asyncio.sleep(1)
-                print("✅ تم تحديد تاريخ الميلاد بنجاح!")
+                await page.click('div[role="option"]:nth-child(6)') # اختيار شهر حزيران/يونيو مثلاً
+                await asyncio.sleep(0.5)
+
+                # النقر على قائمة اليوم
+                await page.click('div:has-text("Day")')
+                await asyncio.sleep(1)
+                await page.click('div[role="option"]:nth-child(15)') # اختيار اليوم 15
+                await asyncio.sleep(0.5)
+
+                # النقر على قائمة السنة وإدخال السنة
+                await page.click('div:has-text("Year")')
+                await asyncio.sleep(1)
+                await page.keyboard.type("1995")
+                await page.keyboard.press("Enter")
+                await asyncio.sleep(1)
+                print("✅ تم تعبئة تاريخ الميلاد بنجاح عبر القوائم التفاعلية!")
             except Exception as e:
-                print(f"⚠️ ملاحظة حول اختيار تاريخ الميلاد عبر التحديد المباشر: {e}")
-                # محاولة بديلة عبر القوائم المنسدلة العامة في الصفحة
+                print(f"⚠️ تحذير أثناء اختيار تاريخ الميلاد بالتفاعل: {e}")
+                # محاولة احتياطية ثانية بالنقر المباشر بالاحداثيات أو البحث بالخيارات
                 try:
-                    selects = await page.query_selector_all('select')
-                    if len(selects) >= 3:
-                        await selects[0].select_option(index=random.randint(1, 12))
-                        await selects[1].select_option(index=random.randint(1, 28))
-                        await selects[2].select_option(value="1995")
-                        print("✅ تم تحديد التاريخ بالقوائم البديلة بنجاح!")
+                    await page.click('text="Month"')
+                    await page.keyboard.press("ArrowDown")
+                    await page.keyboard.press("Enter")
+                    await page.click('text="Day"')
+                    await page.keyboard.press("ArrowDown")
+                    await page.keyboard.press("Enter")
+                    await page.click('text="Year"')
+                    await page.keyboard.type("1995")
+                    await page.keyboard.press("Enter")
                 except Exception as ex:
-                    print(f"⚠️ فشل تحديد التاريخ البديل: {ex}")
+                    print(f"⚠️ فشل الاحتياطي أيضاً: {ex}")
 
             # الخطوة 4: إدخال البريد الإلكتروني
             print("⌨️ إدخال البريد الإلكتروني...")
@@ -225,15 +237,15 @@ async def auto_create_bot_complete():
 
             await save_diagnostic(page, "step4-data-filled")
 
-            # الخطوة 6: الضغط على زر إرسال الرمز الآن وقد أصبح مفَعلاً
+            # الخطوة 6: الضغط على زر إرسال الرمز
             print("📨 الضغط على زر إرسال الرمز (Send code)...")
             send_btn = await page.wait_for_selector('button:has-text("Send code"), [data-e2e="send-code-button"]', timeout=5000)
             
-            # التأكد من أن الزر غير معطل قبل النقر
+            # التحقق مما إذا كان الزر ما زال معطلاً
             is_disabled = await send_btn.get_attribute("disabled")
             if is_disabled is not None:
                 await save_diagnostic(page, "error-send-code-still-disabled")
-                return False, "⚠️ زر إرسال الرمز ما زال معطلاً (تحقق من حقول تاريخ الميلاد)."
+                return False, "⚠️ زر إرسال الرمز ما زال معطلاً (تاريخ الميلاد لم يتعبأ بالشكل الصحيح)."
 
             await send_btn.click()
             print("✅ تم النقر على زر إرسال الرمز بنجاح تام!")
@@ -247,7 +259,7 @@ async def auto_create_bot_complete():
                 await code_field.type(verification_code, delay=100)
                 await asyncio.sleep(2)
                 
-                # الضغط على التالي / التأكيد
+                # الضغط على زر التالي
                 submit_btn = await page.query_selector('button[type="submit"], button:has-text("Next"), button:has-text("التالي")')
                 if submit_btn:
                     await submit_btn.click()
@@ -266,6 +278,7 @@ async def auto_create_bot_complete():
         finally:
             await browser.close()
 
+# دالة إرسال المتابعات
 async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
@@ -312,7 +325,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - النسخة التامة</title>
+    <title>منظومة سعيد الذكية - النسخة النهائية الحية</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -326,8 +339,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد التامة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة الحسابات المتكامل مع تحديد الميلاد | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد النهائية الحية</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة الحسابات مع القوائم المخصصة والتشخيص | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -338,7 +351,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الشامل الآن ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الفعلي الآن ⚙️</button>
             </form>
         </div>
 
@@ -364,7 +377,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_complete())
+        success, msg = asyncio.run(auto_create_bot_final())
         last_msg = msg
         if not success:
             break
