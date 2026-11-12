@@ -24,7 +24,7 @@ def fetch_verification_code():
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(BASE_EMAIL, GMAIL_APP_PASSWORD)
         
-        for _ in range(40): # محاولات سريعة ومكثفة لضمان التقاط الرمز فور وصوله
+        for _ in range(40): 
             mail.select("inbox")
             status, messages = mail.search(None, '(UNSEEN FROM "tiktok.com")')
             
@@ -77,7 +77,6 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# دالة حفظ لقطات الشاشة في كل مرحلة للتشخيص الدقيق
 async def save_diagnostic(page, step_name):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     screenshot_path = os.path.join(DIAGNOSTICS_DIR, f"{step_name}-{timestamp}.png")
@@ -91,8 +90,8 @@ async def save_diagnostic(page, step_name):
     except Exception as e:
         print(f"⚠️ فشل حفظ لقطة الشاشة: {e}")
 
-# محرك التشغيل الكامل والمحترف مع المراقبة والتقاط الصور الفورية
-async def auto_create_bot_fully_instrumented():
+# محرك التشغيل المصحح بدقة لاختيار تاريخ الميلاد الفعلي والمرئي
+async def auto_create_bot_fixed():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -149,26 +148,42 @@ async def auto_create_bot_fully_instrumented():
                 pass
             await save_diagnostic(page, "3-email-form-ready")
 
-            # 3. تعبئة تاريخ الميلاد (January / 1 / 1995)
-            print("📅 تحديد تاريخ الميلاد...")
+            # 3. اختيار تاريخ الميلاد بطريقة صحيحة ومضمونة (النقر على القائمة المرئية ثم اختيار العنصر الظاهر)
+            print("📅 اختيار تاريخ الميلاد (يناير / 1 / 1995)...")
             try:
+                # اختيار الشهر
                 await page.click('div:has-text("Month")')
-                await asyncio.sleep(0.8)
-                await page.click('div[role="option"]:has-text("January")')
+                await asyncio.sleep(1)
+                await page.locator('div[role="option"]:visible').filter(has_text="January").click()
                 await asyncio.sleep(0.5)
 
+                # اختيار اليوم
                 await page.click('div:has-text("Day")')
-                await asyncio.sleep(0.8)
-                await page.click('div[role="option"]:has-text("1")')
+                await asyncio.sleep(1)
+                await page.locator('div[role="option"]:visible').filter(has_text="1").first.click()
                 await asyncio.sleep(0.5)
 
+                # اختيار السنة
                 await page.click('div:has-text("Year")')
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(1)
                 await page.keyboard.type("1995")
                 await page.keyboard.press("Enter")
                 await asyncio.sleep(1)
             except Exception as e:
-                print(f"⚠️ ملاحظة اختيار التاريخ: {e}")
+                print(f"⚠️ محاولة اختيار التاريخ بالأسلوب البديل: {e}")
+                try:
+                    # أسلوب بديل عبر السهم لوحة المفاتيح
+                    await page.click('text="Month"')
+                    await page.keyboard.press("ArrowDown")
+                    await page.keyboard.press("Enter")
+                    await page.click('text="Day"')
+                    await page.keyboard.press("ArrowDown")
+                    await page.keyboard.press("Enter")
+                    await page.click('text="Year"')
+                    await page.keyboard.type("1995")
+                    await page.keyboard.press("Enter")
+                except Exception as ex:
+                    print(f"⚠️ فشل الاختيار البديل: {ex}")
 
             await save_diagnostic(page, "4-birthday-selected")
 
@@ -190,23 +205,22 @@ async def auto_create_bot_fully_instrumented():
 
             await save_diagnostic(page, "5-data-filled-ready-to-send")
 
-            # 6. النقر على Send code مع حفظ لقطة فورية قبل وبعد النقر
+            # 6. النقر على Send code مع التحقق من تفعيل الزر تماماً
             print("📨 الضغط على زر Send code...")
             send_btn = await page.wait_for_selector('button:has-text("Send code"), [data-e2e="send-code-button"]', timeout=5000)
             
-            # التحقق من أن الزر مفعّل
             is_disabled = await send_btn.get_attribute("disabled")
             if is_disabled is not None:
                 await save_diagnostic(page, "error-send-btn-disabled")
-                return False, "⚠️ زر إرسال الرمز ما زال معطلاً."
+                return False, "⚠️ زر إرسال الرمز ما زال معطلاً (تاريخ الميلاد لم يتم اختياره بنجاح)."
 
             await send_btn.click()
-            print("✅ تم النقر على Send code بنجاح! جاري التقاط صورة للحالة الحالية...")
+            print("✅ تم النقر على Send code بنجاح تام!")
             await asyncio.sleep(3)
             
-            # حفظ لقطة بعد النقر مباشرة لمراقبة هل ظهرت كابتشا أو تم إرسال الرمز
             await save_diagnostic(page, "6-after-send-code-clicked")
 
+            # 7. جلب وإدخال الرمز من Gmail
             print("⏳ جاري انتظار وسحب الرمز من Gmail بسرعة...")
             verification_code = fetch_verification_code()
             
@@ -219,7 +233,7 @@ async def auto_create_bot_fully_instrumented():
                 
                 await save_diagnostic(page, "7-code-entered")
 
-                # الضغط على زر التالي / التأكيد النهائي
+                # التأكيد والانتقال للخطوة النهائية
                 submit_btn = await page.query_selector('button[type="submit"], button:has-text("Next"), button:has-text("التالي")')
                 if submit_btn:
                     await submit_btn.click()
@@ -233,7 +247,7 @@ async def auto_create_bot_fully_instrumented():
                 return True, f"🎉 تم إنشاء الحساب وسحب الرمز بنجاح تام وحفظه في المزرعة: {bot_email}"
             else:
                 await save_diagnostic(page, "error-gmail-timeout-no-code")
-                return False, "⚠️ تم النقر على إرسال الرمز، ولكن لم يُستقبل أي رمز في Gmail (ربما ظهرت نافذة تحقّق خفية تتطلب تدخلاً)."
+                return False, "⚠️ تم النقر على إرسال الرمز، ولكن لم يُستقبل أي رمز في Gmail (تأكد من حالة البريد)."
 
         except Exception as e:
             await save_diagnostic(page, "error-fatal-exception")
@@ -241,7 +255,6 @@ async def auto_create_bot_fully_instrumented():
         finally:
             await browser.close()
 
-# دالة إرسال المتابعات
 async def auto_send_follows(target_username):
     if not os.path.exists("saeed_database.txt"):
         return "المزرعة فارغة! لا توجد حسابات مسجلة في ملف saeed_database.txt بعد."
@@ -288,7 +301,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - الإصدار الشامل</title>
+    <title>منظومة سعيد الذكية - النسخة المصححة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -302,8 +315,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد الشاملة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام التشخيص الحي والتقاط الصور لكل مرحلة | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد المصححة</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدخال التاريخ المرئي واستلام الرمز | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -314,7 +327,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد الحي والمراقبة ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد المصحح الآن ⚙️</button>
             </form>
         </div>
 
@@ -340,7 +353,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_fully_instrumented())
+        success, msg = asyncio.run(auto_create_bot_fixed())
         last_msg = msg
         if not success:
             break
