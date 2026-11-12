@@ -89,7 +89,7 @@ async def save_diagnostic(page, step_name):
     except Exception as e:
         print(f"⚠️ فشل حفظ لقطة التشخيص: {e}")
 
-# المحرك المحسن لمعالجة ضغط زر إرسال الرمز والتأكد من استجابته الفعليّة
+# المحرك المعدل ليعمل بسلاسة تامة على Termux وأندرويد
 async def auto_create_bot_code_fix():
     bot_email = generate_dot_email()
     username = generate_human_username()
@@ -99,12 +99,11 @@ async def auto_create_bot_code_fix():
         browser = await p.chromium.launch(
             headless=True,
             args=[
-                "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
-                "--disable-infobars",
+                "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--window-size=1920,1080"
+                "--single-process"
             ]
         )
         
@@ -113,12 +112,6 @@ async def auto_create_bot_code_fix():
             viewport={"width": 1920, "height": 1080},
             locale="en-US"
         )
-        
-        await context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => false});
-            window.navigator.chrome = {runtime: {}};
-            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-        """)
         
         page = await context.new_page()
         
@@ -188,27 +181,24 @@ async def auto_create_bot_code_fix():
 
             await save_diagnostic(page, "5-data-filled-ready-to-send")
 
-            # 6. النقر البشري المتقن على زر Send code لضمان إرسال الرمز وتجنب التجاهل
+            # 6. النقر البشري المتقن على زر Send code
             print("📨 تحريك المؤشر والضغط على زر Send code بشكل بشري...")
             send_btn = await page.wait_for_selector('button:has-text("Send code"), [data-e2e="send-code-button"]', timeout=5000)
             
-            # التأكد من تفعيل الزر
             is_disabled = await send_btn.get_attribute("disabled")
             if is_disabled is not None:
                 await save_diagnostic(page, "error-send-btn-disabled")
                 return False, "⚠️ زر إرسال الرمز معطل رغم تعبئة البيانات."
 
-            # التمرير نحو الزر والتحليق فوقه ثم النقر
             await send_btn.hover()
             await asyncio.sleep(random.uniform(0.5, 1.0))
             await send_btn.click()
             print("✅ تم تنفيذ النقر البشري على Send code بنجاح!")
             
-            # الانتظار ريثما يستجيب خادم تيك توك ويبدأ العد التنازلي
             await asyncio.sleep(5)
             await save_diagnostic(page, "6-after-send-code-clicked")
 
-            # 7. جلب وإدخال الرمز من Gmail بسرعة فائقة
+            # 7. جلب وإدخال الرمز من Gmail
             print("⏳ جاري مراقبة صندوق الوارد في Gmail لسحب الرمز...")
             verification_code = fetch_verification_code()
             
@@ -221,7 +211,6 @@ async def auto_create_bot_code_fix():
                 
                 await save_diagnostic(page, "7-code-entered")
 
-                # الضغط على زر التأكيد أو Next
                 submit_btn = await page.query_selector('button[type="submit"], button:has-text("Next"), button:has-text("التالي")')
                 if submit_btn:
                     await submit_btn.click()
@@ -229,13 +218,12 @@ async def auto_create_bot_code_fix():
 
                 await save_diagnostic(page, "8-account-created-success")
 
-                # حفظ الحساب في ملف المزرعة
                 with open("saeed_database.txt", "a") as f:
                     f.write(f"{bot_email},{password}\n")
                 return True, f"🎉 تم إنشاء الحساب وسحب الرمز بنجاح وتخزينه في المزرعة: {bot_email}"
             else:
                 await save_diagnostic(page, "error-gmail-timeout-no-code")
-                return False, "⚠️ تم النقر على إرسال الرمز ولكن تيك توك لم يرسل الرسالة (قد يتطلب التحقق البشري من الكابتشا)."
+                return False, "⚠️ تم النقر على إرسال الرمز ولكن تيك توك لم يرسل الرسالة."
 
         except Exception as e:
             await save_diagnostic(page, "error-fatal-exception")
@@ -251,7 +239,10 @@ async def auto_send_follows(target_username):
         accounts = f.readlines()
         
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--single-process"]
+        )
         for acc in accounts:
             if "," not in acc: continue
             email, password = acc.strip().split(",")
@@ -289,7 +280,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - محرك إرسال الرمز الفوري</title>
+    <title>منظومة سعيد الذكية - تيرمكس</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -304,7 +295,7 @@ HTML_DASHBOARD = """
 <body>
     <div class="wrapper">
         <h1>🌾 منظومة سعيد المطورة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام الضغط البشري وإرسال الرمز | المالك: سعيد</p>
+        <p style="text-align: center; color: #666; font-size: 14px;">محرك الأتمتة المحلي | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
