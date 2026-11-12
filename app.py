@@ -73,8 +73,8 @@ def generate_human_username():
     last = ["tech", "vibe", "zone", "pro", "99", "77"]
     return f"{random.choice(first)}_{html.escape(random.choice(last))}{random.randint(10, 999)}"
 
-# محرك الإنشاء الأوتوماتيكي المصحح لتسلسل الواجهة
-async def auto_create_bot_sequence_fixed():
+# محرك الإنشاء الأوتوماتيكي المصحح للتبديل الفوري إلى الإيميل
+async def auto_create_bot_exact_flow():
     bot_email = generate_dot_email()
     username = generate_human_username()
     password = f"SaeedFarm!{random.randint(1000, 9999)}"
@@ -111,47 +111,39 @@ async def auto_create_bot_sequence_fixed():
             await page.goto("https://www.tiktok.com/signup", wait_until="domcontentloaded", timeout=60000)
             await asyncio.sleep(random.uniform(4, 6))
             
-            # الخطوة الحاسمة المفقودة: البحث عن زر اختيار التسجيل بالبريد/الهاتف والضغط عليه
-            print("🖱️ البحث عن خيار 'Use phone or email' للضغط عليه...")
-            phone_email_btn_selectors = [
-                'text="Use phone or email"',
-                'text="استخدام الهاتف أو البريد الإلكتروني"',
-                '[data-e2e="signup-phone-or-email"]',
-                'a:has-text("Use phone or email")',
-                'div:has-text("Use phone or email")'
+            # الخطوة الحاسمة: الضغط على رابط "Sign up with email" الظاهر في الصورة لتغيير واجهة الهاتف إلى واجهة البريد
+            print("🖱️ البحث عن رابط 'Sign up with email' للتبديل إلى الإيميل...")
+            email_toggle_selectors = [
+                'text="Sign up with email"',
+                'a:has-text("Sign up with email")',
+                'span:has-text("Sign up with email")',
+                'div:has-text("Sign up with email")'
             ]
             
-            clicked_option = False
-            for sel in phone_email_btn_selectors:
+            toggled = False
+            for sel in email_toggle_selectors:
                 try:
-                    btn = await page.wait_for_selector(sel, timeout=5000)
-                    if btn:
-                        await btn.click()
-                        clicked_option = True
-                        print("✅ تم الضغط على زر اختيار البريد/الهاتف بنجاح!")
+                    toggle_btn = await page.wait_for_selector(sel, timeout=5000)
+                    if toggle_btn:
+                        await toggle_btn.click()
+                        toggled = True
+                        print("✅ تم النقر على 'Sign up with email' وتحويل النموذج إلى البريد بنجاح!")
                         await asyncio.sleep(2)
                         break
                 except:
                     continue
             
-            if not clicked_option:
-                print("⚠️ لم يتم العثور على الزر عبر النص الصريح، جاري محاولة البحث عن أي رابط/زر انتقال فرعي...")
-                # محاولة الضغط عبر كود عام إن لم يُعثر على الزر النصي
-                try:
-                    await page.click('span:has-text("email")', timeout=3000)
-                    clicked_option = True
-                except:
-                    pass
+            if not toggled:
+                print("⚠️ لم يتم العثور على رابط التبديل التقليدي، جاري محاولة التمرير أو البحث البديل...")
 
-            # الآن بعد ظهور الشاشة التالية، نبحث عن حقل البريد الإلكتروني
-            print("⌨️ البحث عن حقل إدخال البريد الإلكتروني...")
+            # الآن حقل البريد الإلكتروني ظهر تماماً على الشاشة، نبحث عنه
+            print("⌨️ البحث عن حقل إدخال البريد الإلكتروني الفعلي...")
             email_selectors = [
                 'input[type="email"]', 
                 'input[name="email"]', 
                 'input[placeholder*="email" i]', 
                 'input[placeholder*="البريد" i]',
-                'input[autocomplete="username"]',
-                'input[name="username"]'
+                'input[autocomplete="username"]'
             ]
             
             email_field = None
@@ -165,7 +157,7 @@ async def auto_create_bot_sequence_fixed():
                     continue
             
             if not email_field:
-                return False, "ظهرت شاشة اختيار طريقة التسجيل، لكن لم يتم بنجاح تخطي الخطوة الأولى لعرض حقل البريد."
+                return False, "تعذر ظهور حقل البريد الإلكتروني بعد محاولة التبديل."
 
             # إدخال البريد الإلكتروني ببطء بشري
             await email_field.click()
@@ -302,7 +294,7 @@ HTML_DASHBOARD = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>منظومة سعيد الذكية - النسخة المتسلسلة</title>
+    <title>منظومة سعيد الذكية - النسخة النهائية المكتملة</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f6f9; margin: 0; padding: 40px; text-align: center; }
         .wrapper { max-width: 600px; display: inline-block; text-align: right; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -316,8 +308,8 @@ HTML_DASHBOARD = """
 </head>
 <body>
     <div class="wrapper">
-        <h1>🌾 منظومة سعيد المتسلسلة</h1>
-        <p style="text-align: center; color: #666; font-size: 14px;">نظام إدارة تسلسل الخطوات بدقة | المالك: سعيد</p>
+        <h1>🌾 منظومة سعيد النهائية</h1>
+        <p style="text-align: center; color: #666; font-size: 14px;">نظام تكتيك التبديل للإيميل والتشغيل الآلي | المالك: سعيد</p>
         
         {% if msg %}
             <div class="alert">{{ msg }}</div>
@@ -328,7 +320,7 @@ HTML_DASHBOARD = """
             <form action="/create_bots" method="post">
                 <label>عدد الحسابات المراد إنشاؤها الآن:</label>
                 <input type="number" name="count" value="1" min="1" max="5">
-                <button type="submit" class="btn">بدء التوليد بالتسلسل الصحيح ⚙️</button>
+                <button type="submit" class="btn">بدء التوليد الصحيح الآن ⚙️</button>
             </form>
         </div>
 
@@ -354,7 +346,7 @@ def create_bots():
     count = int(request.form.get('count', 1))
     last_msg = ""
     for _ in range(count):
-        success, msg = asyncio.run(auto_create_bot_sequence_fixed())
+        success, msg = asyncio.run(auto_create_bot_exact_flow())
         last_msg = msg
         if not success:
             break
