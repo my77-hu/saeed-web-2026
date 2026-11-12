@@ -1,1 +1,4 @@
-flask`, `playwright`, `httpx`, `gunicorn
+flask
+playwright
+httpx
+gunicorn
