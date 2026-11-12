@@ -89,7 +89,7 @@ async def save_diagnostic(page, step_name):
     except Exception as e:
         print(f"⚠️ فشل حفظ لقطة التشخيص: {e}")
 
-# المحرك المعدل ليعمل بسلاسة تامة على Termux وأندرويد
+# المحرك المعدل بوضع headless=False ليتوافق مع تيرمكس وأندرويد
 async def auto_create_bot_code_fix():
     bot_email = generate_dot_email()
     username = generate_human_username()
@@ -97,13 +97,12 @@ async def auto_create_bot_code_fix():
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=False,
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--single-process"
+                "--disable-gpu"
             ]
         )
         
@@ -240,8 +239,8 @@ async def auto_send_follows(target_username):
         
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage", "--single-process"]
+            headless=False,
+            args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
         for acc in accounts:
             if "," not in acc: continue
